@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartGrow | ESP32 Plant Monitor</title>
+
+<!-- Modern Font -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Professional Vector Icons -->
+<script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+<style>
+/* =========================================================
+   RESET & GLOBAL
+========================================================= */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --bg-base: #030a07;
+    --surface: #0a1410;
+    --surface-hover: #101f19;
+
+    --border: rgba(255, 255, 255, 0.08);
+    --border-light: rgba(255, 255, 255, 0.15);
+
+    --primary: #00ff88;
+    --primary-glow: rgba(0, 255, 136, 0.3);
+    --info: #00e1ff;
+    --info-glow: rgba(0, 225, 255, 0.3);
+    --warning: #ffd000;
+    --warning-glow: rgba(255, 208, 0, 0.3);
+    --danger: #ff3b6b;
+    --danger-glow: rgba(255, 59, 107, 0.3);
+
+    --text-main: #e2f0e9;
+    --text-muted: #829a8f;
+}
+
+body {
+    font-family: 'Outfit', sans-serif;
+    background-color: var(--bg-base);
+    background-image:
+        radial-gradient(circle at 15% 50%, rgba(0, 255, 136, 0.03) 0%, transparent 50%),
+        radial-gradient(circle at 85% 30%, rgba(0, 225, 255, 0.03) 0%, transparent 50%);
+    color: var(--text-main);
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+.app { min-height: 100vh; width: 100%; }
+.main { width: 100%; max-width: 1400px; margin: 0 auto; padding: 40px 40px 80px 40px; }
+
+.topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
+.page-title h2 { font-size: 28px; font-weight: 600; display: flex; align-items: center; gap: 12px; letter-spacing: -0.5px; }
+.page-title h2 i { color: var(--primary); text-shadow: 0 0 15px var(--primary-glow); }
+.page-title p { color: var(--text-muted); font-size: 13px; margin-top: 6px; font-weight: 300; }
+
+.top-actions { display: flex; align-items: center; gap: 16px; }
+.connection { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 50px; padding: 10px 18px; color: var(--primary); font-size: 11px; font-weight: 600; letter-spacing: 1px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+.date { color: var(--text-muted); font-size: 13px; font-weight: 400; background: var(--surface); padding: 10px 18px; border-radius: 50px; border: 1px solid var(--border); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 10px var(--primary); animation: pulse 2s infinite; }
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 var(--primary-glow); }
+    70% { box-shadow: 0 0 0 6px rgba(0,255,136,0); }
+    100% { box-shadow: 0 0 0 0 rgba(0,255,136,0); }
+}
+
+.section-header { margin-bottom: 20px; margin-top: 40px; }
+.section-header h3 { font-size: 18px; font-weight: 500; }
+.section-header:first-of-type { margin-top: 0; }
+
+.sensor-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+.sensor { background: var(--surface); border: 1px solid var(--border); border-radius: 24px; padding: 24px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: relative; overflow: hidden; }
+.sensor::after { content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 2px; }
+.temperature::after { background: var(--danger); }
+.humidity::after { background: var(--info); }
+.soil::after { background: var(--primary); }
+.light::after { background: var(--warning); }
+.sensor:hover { transform: translateY(-5px); background: var(--surface-hover); border-color: var(--border-light); box-shadow: 0 15px 35px rgba(0,0,0,0.3); }
+
+.sensor-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.sensor-icon { width: 48px; height: 48px; display: flex; justify-content: center; align-items: center; border-radius: 14px; font-size: 24px; }
+.temperature .sensor-icon { background: var(--danger-glow); color: var(--danger); }
+.humidity .sensor-icon { background: var(--info-glow); color: var(--info); }
+.soil .sensor-icon { background: var(--primary-glow); color: var(--primary); }
+.light .sensor-icon { background: var(--warning-glow); color: var(--warning); }
+
+.sensor-status { font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 50px; background: rgba(255,255,255,0.05); }
+.sensor-name { color: var(--text-muted); font-size: 11px; font-weight: 600; letter-spacing: 1px; margin-top: 30px; }
+.sensor-value { font-size: 42px; font-weight: 700; margin-top: 5px; letter-spacing: -1px; }
+.sensor-unit { color: var(--text-muted); font-size: 16px; font-weight: 400; margin-left: 2px; }
+.sensor-description { color: var(--text-muted); font-size: 12px; margin-top: 10px; font-weight: 300; }
+
+.automation-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.automation-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.automation-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.05);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 26px;
+    color: var(--text-muted);
+    transition: all 0.4s;
+}
+
+.automation-info { flex-grow: 1; }
+.automation-info h4 { font-size: 15px; font-weight: 500; transition: color 0.3s; margin-bottom: 4px; }
+.automation-info p { font-size: 12px; color: var(--text-muted); line-height: 1.3; }
+.automation-status { padding: 8px 16px; border-radius: 50px; font-size: 10px; font-weight: 700; letter-spacing: 1px; background: rgba(255,255,255,0.05); color: var(--text-muted); transition: all 0.4s; white-space: nowrap; }
+
+.automation-card.active-pump { border-color: var(--info); background: rgba(0, 225, 255, 0.05); box-shadow: 0 0 30px rgba(0, 225, 255, 0.15); }
+.automation-card.active-pump .automation-icon { background: var(--info-glow); color: var(--info); animation: pulse-info 1.5s infinite; }
+.automation-card.active-pump .automation-info h4 { color: var(--info); text-shadow: 0 0 10px var(--info-glow); }
+.automation-card.active-pump .automation-status { background: var(--info); color: #000; box-shadow: 0 0 15px var(--info-glow); }
+
+.automation-card.active-light { border-color: var(--warning); background: rgba(255, 208, 0, 0.05); box-shadow: 0 0 30px rgba(255, 208, 0, 0.15); }
+.automation-card.active-light .automation-icon { background: var(--warning-glow); color: var(--warning); animation: pulse-warning 1.5s infinite; }
+.automation-card.active-light .automation-info h4 { color: var(--warning); text-shadow: 0 0 10px var(--warning-glow); }
+.automation-card.active-light .automation-status { background: var(--warning); color: #000; box-shadow: 0 0 15px var(--warning-glow); }
+
+.automation-card.active-fan { border-color: var(--danger); background: rgba(255, 59, 107, 0.05); box-shadow: 0 0 30px rgba(255, 59, 107, 0.15); }
+.automation-card.active-fan .automation-icon { background: var(--danger-glow); color: var(--danger); }
+.automation-card.active-fan .automation-icon i { animation: spin 1s linear infinite; }
+.automation-card.active-fan .automation-info h4 { color: var(--danger); text-shadow: 0 0 10px var(--danger-glow); }
+.automation-card.active-fan .automation-status { background: var(--danger); color: #fff; box-shadow: 0 0 15px var(--danger-glow); }
+
+@keyframes spin { 100% { transform: rotate(360deg); } }
+@keyframes pulse-info { 0% { box-shadow: 0 0 0 0 rgba(0, 225, 255, 0.5); } 70% { box-shadow: 0 0 0 15px rgba(0, 225, 255, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 225, 255, 0); } }
+@keyframes pulse-warning { 0% { box-shadow: 0 0 0 0 rgba(255, 208, 0, 0.5); } 70% { box-shadow: 0 0 0 15px rgba(255, 208, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 208, 0, 0); } }
+
+.content-grid { display: grid; grid-template-columns: 1.8fr 1fr; gap: 20px; margin-top: 40px; }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 24px; padding: 28px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+.panel-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+.panel-title h3 { font-size: 16px; font-weight: 500; }
+.panel-title span { color: var(--text-muted); font-size: 12px; }
+.live-badge { background: var(--primary-glow); color: var(--primary); padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
+
+.chart { height: 240px; position: relative; padding-left: 35px; }
+.grid-line { position: absolute; left: 35px; right: 0; height: 1px; background: var(--border); }
+.line1 { top: 20px; } .line2 { top: 80px; } .line3 { top: 140px; } .line4 { top: 200px; }
+.chart-svg { position: absolute; left: 35px; right: 0; top: 20px; width: calc(100% - 35px); height: 180px; overflow: visible; }
+.chart-labels { position: absolute; left: 35px; right: 0; bottom: 0; display: flex; justify-content: space-between; color: var(--text-muted); font-size: 11px; }
+
+.health { display: flex; align-items: center; gap: 24px; margin-bottom: 30px; background: linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%); padding: 20px; border-radius: 16px; border: 1px solid var(--border); }
+.plant { width: 90px; height: 90px; min-width: 90px; border-radius: 50%; background: var(--primary-glow); display: flex; justify-content: center; align-items: center; font-size: 45px; color: var(--primary); box-shadow: 0 0 30px rgba(0,255,136,0.15); }
+.health-score { font-size: 42px; font-weight: 700; color: var(--primary); line-height: 1; margin-bottom: 5px; }
+.health-text { color: var(--text-muted); font-size: 11px; letter-spacing: 1px; font-weight: 600; }
+.progress { width: 100%; height: 8px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; margin-top: 12px; }
+.progress-bar { width: 82%; height: 100%; background: var(--primary); border-radius: 10px; transition: width 1s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.5s; box-shadow: 0 0 10px var(--primary); }
+.health-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.metric { background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+.metric-name { color: var(--text-muted); font-size: 10px; letter-spacing: 1px; font-weight: 600; }
+.metric-value { font-size: 14px; font-weight: 500; margin-top: 8px; display: flex; align-items: center; gap: 6px; }
+.metric-value.good { color: var(--primary); }
+.metric-value.warning { color: var(--warning); }
+.metric-value.danger { color: var(--danger); }
+
+.bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+.activity { display: flex; flex-direction: column; gap: 18px; }
+.activity-row { display: flex; align-items: center; gap: 14px; font-size: 13px; color: var(--text-main); padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+.activity-row:last-child { border-bottom: none; padding-bottom: 0; }
+.activity-dot { width: 8px; height: 8px; min-width: 8px; border-radius: 50%; }
+.activity-time { color: var(--text-muted); margin-left: auto; font-size: 11px; }
+
+.storage-card { display: flex; align-items: center; gap: 18px; background: rgba(255,255,255,0.02); padding: 20px; border-radius: 16px; border: 1px solid var(--border); }
+.storage-icon { width: 54px; height: 54px; min-width: 54px; display: flex; justify-content: center; align-items: center; background: var(--primary-glow); color: var(--primary); border-radius: 14px; font-size: 28px; }
+.storage-info h4 { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+.storage-info p { color: var(--text-muted); font-size: 12px; }
+.storage-status { margin-left: auto; color: var(--primary); font-size: 10px; font-weight: 700; letter-spacing: 1px; background: rgba(0,255,136,0.1); padding: 6px 12px; border-radius: 50px; }
+
+footer { display: flex; justify-content: space-between; margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 11px; letter-spacing: 1px; }
+
+@media (max-width: 1200px) {
+    .sensor-grid { grid-template-columns: repeat(2, 1fr); }
+    .content-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 992px) {
+    .automation-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+    .main { padding: 20px; }
+    .sensor-grid, .bottom-grid { grid-template-columns: 1fr; }
+    .topbar { flex-direction: column; align-items: flex-start; gap: 20px; }
+    .top-actions { width: 100%; justify-content: space-between; flex-wrap: wrap; }
+    .automation-card { flex-direction: column; text-align: center; }
+    .automation-status { margin-top: 10px; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+<main class="main">
+
+<div class="topbar">
+    <div class="page-title">
+        <h2><i class="ph-fill ph-plant"></i> Development of an Automated ESP32 Greenhouse with Mobile Dashboard Integration for Pechay Cultivation</h2>
+    </div>
+    <div class="top-actions">
+        <div class="connection"><div class="dot"></div> ESP32 CONNECTED</div>
+        <div class="date" id="currentDate">Loading...</div>
+    </div>
+</div>
+
+<div class="section-header">
+    <h3>Environmental Overview</h3>
+</div>
+
+<div class="sensor-grid">
+    <div class="sensor temperature">
+        <div class="sensor-top">
+            <div class="sensor-icon"><i class="ph-fill ph-thermometer"></i></div>
+            <div class="sensor-status" id="temperatureStatus">NORMAL</div>
+        </div>
+        <div class="sensor-name">TEMPERATURE (Fan triggers at &ge;30&deg;C)</div>
+        <div class="sensor-value"><span id="temperature">--</span><span class="sensor-unit">&deg;C</span></div>
+        <div class="sensor-description">DHT11 Ambient sensor</div>
+    </div>
+
+    <div class="sensor humidity">
+        <div class="sensor-top">
+            <div class="sensor-icon"><i class="ph-fill ph-drop"></i></div>
+            <div class="sensor-status" id="humidityStatus">NORMAL</div>
+        </div>
+        <div class="sensor-name">AIR HUMIDITY</div>
+        <div class="sensor-value"><span id="humidity">--</span><span class="sensor-unit">%</span></div>
+        <div class="sensor-description">Target: 60% - 80% RH</div>
+    </div>
+
+    <div class="sensor soil">
+        <div class="sensor-top">
+            <div class="sensor-icon"><i class="ph-fill ph-potted-plant"></i></div>
+            <div class="sensor-status" id="soilStatus">GOOD</div>
+        </div>
+        <div class="sensor-name">SOIL MOISTURE (Pump triggers at &le;40%)</div>
+        <div class="sensor-value"><span id="soil">--</span><span class="sensor-unit">%</span></div>
+        <div class="sensor-description">Soil probe sensor</div>
+    </div>
+
+    <div class="sensor light">
+        <div class="sensor-top">
+            <div class="sensor-icon"><i class="ph-fill ph-sun"></i></div>
+            <div class="sensor-status" id="lightStatus">OPTIMAL</div>
+        </div>
+        <div class="sensor-name">LIGHT INTENSITY</div>
+        <div class="sensor-value"><span id="light">--</span><span class="sensor-unit">Lux</span></div>
+        <div class="sensor-description">Target: 15k - 25k Lux equivalent</div>
+    </div>
+</div>
+
+<div class="section-header">
+    <div>
+        <h3>Smart Automation</h3>
+        <span style="color: var(--text-muted); font-size: 12px;">ESP32 autonomous system responses</span>
+    </div>
+</div>
+
+<div class="automation-grid">
+    <div class="automation-card" id="autoWateringCard">
+        <div class="automation-icon"><i class="ph-fill ph-drop"></i></div>
+        <div class="automation-info">
+            <h4 id="pumpTitle">Auto-Watering: Standby</h4>
+            <p id="pumpDesc">Soil moisture is optimal.</p>
+        </div>
+        <div class="automation-status" id="pumpStatusBadge">STANDBY</div>
+    </div>
+
+    <div class="automation-card" id="autoLightCard">
+        <div class="automation-icon"><i class="ph-fill ph-lightbulb"></i></div>
+        <div class="automation-info">
+            <h4 id="lightTitle">Grow Light: Standby</h4>
+            <p id="lightDesc">Natural light is sufficient.</p>
+        </div>
+        <div class="automation-status" id="lightStatusBadge">STANDBY</div>
+    </div>
+
+    <div class="automation-card" id="autoFanCard">
+        <div class="automation-icon"><i class="ph-fill ph-fan"></i></div>
+        <div class="automation-info">
+            <h4 id="fanTitle">Exhaust Fan: Standby</h4>
+            <p id="fanDesc">Temperature is optimal.</p>
+        </div>
+        <div class="automation-status" id="fanStatusBadge">STANDBY</div>
+    </div>
+</div>
+
+<div class="content-grid">
+    <div class="panel">
+        <div class="panel-title">
+            <div>
+                <h3>Environment History</h3>
+                <span>Temperature • Last 6 hours</span>
+            </div>
+            <span class="live-badge">LIVE</span>
+        </div>
+        <div class="chart">
+            <div class="grid-line line1"></div><div class="grid-line line2"></div><div class="grid-line line3"></div><div class="grid-line line4"></div>
+            <svg class="chart-svg" viewBox="0 0 600 155" preserveAspectRatio="none">
+                <defs>
+                    <linearGradient id="chartGradient" x1="0" x2="0" y1="0" y2="1">
+                        <stop offset="0%" stop-color="#00ff88" stop-opacity="0.25" />
+                        <stop offset="100%" stop-color="#00ff88" stop-opacity="0" />
+                    </linearGradient>
+                    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="4" result="blur" />
+                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                    </filter>
+                </defs>
+                <path d="M0,100 C40,85 60,95 95,75 C130,55 150,70 190,62 C230,54 245,80 285,65 C325,50 345,40 380,53 C420,68 440,48 470,45 C510,42 530,60 565,35 C580,25 590,30 600,22 L600,155 L0,155 Z" fill="url(#chartGradient)"/>
+                <path d="M0,100 C40,85 60,95 95,75 C130,55 150,70 190,62 C230,54 245,80 285,65 C325,50 345,40 380,53 C420,68 440,48 470,45 C510,42 530,60 565,35 C580,25 590,30 600,22" fill="none" stroke="#00ff88" stroke-width="4" filter="url(#glow)"/>
+            </svg>
+            <div class="chart-labels"><span>8 AM</span><span>10 AM</span><span>12 PM</span><span>2 PM</span><span>Now</span></div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-title">
+            <h3>Plant Health</h3>
+            <span>Current condition</span>
+        </div>
+        <div class="health">
+            <div class="plant"><i class="ph-fill ph-plant"></i></div>
+            <div style="width:100%;">
+                <div class="health-score" id="healthScore">--%</div>
+                <div class="health-text">OVERALL SCORE</div>
+                <div class="progress"><div class="progress-bar" id="healthProgress" style="width:0%"></div></div>
+            </div>
+        </div>
+        <div class="health-metrics">
+            <div class="metric"><div class="metric-name">TEMPERATURE</div><div class="metric-value good" id="tempHealth">Optimal</div></div>
+            <div class="metric"><div class="metric-name">HUMIDITY</div><div class="metric-value good" id="humidityHealth">Optimal</div></div>
+            <div class="metric"><div class="metric-name">SOIL</div><div class="metric-value good" id="soilHealth">Moist</div></div>
+            <div class="metric"><div class="metric-name">LIGHT</div><div class="metric-value good" id="lightHealth">Good</div></div>
+        </div>
+    </div>
+</div>
+
+<div class="bottom-grid">
+    <div class="panel">
+        <div class="panel-title">
+            <h3>System Log</h3>
+            <span>Today</span>
+        </div>
+        <div class="activity" id="activityFeed"></div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-title">
+            <h3>Data Storage</h3>
+            <span>Automatic</span>
+        </div>
+        <div class="storage-card">
+            <div class="storage-icon"><i class="ph-fill ph-hard-drives"></i></div>
+            <div class="storage-info">
+                <h4>sensor_data.csv</h4>
+                <p><span id="recordCount">1,248</span> records safely stored</p>
+            </div>
+            <div class="storage-status">● SYNCING</div>
+        </div>
+    </div>
+</div>
+
+<footer>
+    <span>SMARTGROW • ESP32 • WI-FI • SMART AGRICULTURE</span>
+    <span id="footerStatus">System online • Last update just now</span>
+</footer>
+
+</main>
+</div>
+
+<script>
+function updateDateTime() {
+    const dateElement = document.getElementById("currentDate");
+    const now = new Date();
+    const options = { weekday: "long", year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" };
+    dateElement.textContent = now.toLocaleDateString("en-US", options);
+}
+updateDateTime();
+setInterval(updateDateTime, 60000);
+
+function updateAutomationUI(data) {
+    const pumpCard = document.getElementById("autoWateringCard");
+    if (data.pump) {
+        pumpCard.classList.add("active-pump");
+        document.getElementById("pumpTitle").textContent = "Auto-Watering: ACTIVE";
+        document.getElementById("pumpDesc").textContent = "Soil is dry (<=40%). Pumping water.";
+        document.getElementById("pumpStatusBadge").textContent = "PUMPING WATER";
+    } else {
+        pumpCard.classList.remove("active-pump");
+        document.getElementById("pumpTitle").textContent = "Auto-Watering: Standby";
+        document.getElementById("pumpDesc").textContent = "Soil moisture is optimal.";
+        document.getElementById("pumpStatusBadge").textContent = "STANDBY";
+    }
+
+    const lightCard = document.getElementById("autoLightCard");
+    if (data.lightState) {
+        lightCard.classList.add("active-light");
+        document.getElementById("lightTitle").textContent = "Grow Light: ACTIVE";
+        document.getElementById("lightDesc").textContent = "Low light detected. Supplementing.";
+        document.getElementById("lightStatusBadge").textContent = "LIGHT ON";
+    } else {
+        lightCard.classList.remove("active-light");
+        document.getElementById("lightTitle").textContent = "Grow Light: Standby";
+        document.getElementById("lightDesc").textContent = "Natural light is sufficient.";
+        document.getElementById("lightStatusBadge").textContent = "STANDBY";
+    }
+
+    const fanCard = document.getElementById("autoFanCard");
+    if (data.fan) {
+        fanCard.classList.add("active-fan");
+        document.getElementById("fanTitle").textContent = "Exhaust Fan: ACTIVE";
+        document.getElementById("fanDesc").textContent = "High temp (>=30°C). Cooling down.";
+        document.getElementById("fanStatusBadge").textContent = "FAN ON";
+    } else {
+        fanCard.classList.remove("active-fan");
+        document.getElementById("fanTitle").textContent = "Exhaust Fan: Standby";
+        document.getElementById("fanDesc").textContent = "Temperature is optimal.";
+        document.getElementById("fanStatusBadge").textContent = "STANDBY";
+    }
+}
+
+function updateSensorUI(data) {
+    const tempEl = document.getElementById("temperature");
+    const tempStatus = document.getElementById("temperatureStatus");
+
+    const humEl = document.getElementById("humidity");
+    const humStatus = document.getElementById("humidityStatus");
+
+    if (!data.dhtConnected) {
+        tempEl.textContent = "--";
+        tempStatus.textContent = "DISCONNECTED";
+        tempStatus.style.color = "var(--danger)";
+
+        humEl.textContent = "--";
+        humStatus.textContent = "DISCONNECTED";
+        humStatus.style.color = "var(--danger)";
+    } else {
+        tempEl.textContent = Number(data.temp).toFixed(1);
+        tempStatus.textContent = data.temp >= 30 ? "WARNING" : "NORMAL";
+        tempStatus.style.color = data.temp >= 30 ? "var(--danger)" : "var(--primary)";
+
+        humEl.textContent = Math.round(data.hum);
+        humStatus.textContent = data.hum >= 60 && data.hum <= 80 ? "NORMAL" : "WARNING";
+        humStatus.style.color = data.hum >= 60 && data.hum <= 80 ? "var(--primary)" : "var(--warning)";
+    }
+
+    const soilEl = document.getElementById("soil");
+    const soilStatus = document.getElementById("soilStatus");
+
+    if (!data.soilConnected) {
+        soilEl.textContent = "--";
+        soilStatus.textContent = "DISCONNECTED";
+        soilStatus.style.color = "var(--danger)";
+    } else {
+        soilEl.textContent = Math.round(data.soil);
+        soilStatus.textContent = data.soil <= 40 ? "LOW" : "GOOD";
+        soilStatus.style.color = data.soil <= 40 ? "var(--danger)" : "var(--primary)";
+    }
+
+    const lightEl = document.getElementById("light");
+    const lightStatus = document.getElementById("lightStatus");
+
+    if (!data.lightConnected) {
+        lightEl.textContent = "--";
+        lightStatus.textContent = "DISCONNECTED";
+        lightStatus.style.color = "var(--danger)";
+    } else {
+        lightEl.textContent = Math.round(data.light);
+        lightStatus.textContent = data.light >= 300 ? "OPTIMAL" : "LOW";
+        lightStatus.style.color = data.light >= 300 ? "var(--warning)" : "var(--danger)";
+    }
+
+    let score = 100;
+    if (data.dhtConnected && data.temp >= 30) score -= 20;
+    if (data.soilConnected && data.soil <= 40) score -= 30;
+    if (!data.dhtConnected || !data.soilConnected) score = 0;
+
+    document.getElementById("healthScore").textContent = `${Math.max(0, score)}%`;
+    document.getElementById("healthProgress").style.width = `${Math.max(0, score)}%`;
+}
+
+function logActivity(message, type = "success") {
+    const container = document.getElementById("activityFeed");
+    const time = new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+
+    const row = document.createElement("div");
+    row.className = "activity-row";
+
+    let color = "var(--primary)";
+    if (type === "danger") color = "var(--danger)";
+    if (type === "warning") color = "var(--warning)";
+    if (type === "info") color = "var(--info)";
+
+    row.innerHTML = `
+        <div class="activity-dot" style="background:${color}; box-shadow:0 0 8px ${color};"></div>
+        ${message}
+        <span class="activity-time">${time}</span>
+    `;
+
+    container.prepend(row);
+    while (container.children.length > 5) {
+        container.removeChild(container.lastElementChild);
+    }
+}
+logActivity("Dashboard connected to stream.", "success");
+
+function fetchESP32Data() {
+    fetch('/api/sensors')
+        .then(response => response.json())
+        .then(data => {
+            updateSensorUI(data);
+            updateAutomationUI(data);
+
+            let recordCount = parseInt(document.getElementById("recordCount").textContent.replace(/,/g, '')) + 1;
+            document.getElementById("recordCount").textContent = recordCount.toLocaleString();
+
+            const time = new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+            document.getElementById("footerStatus").textContent = `System online • Last sync at ${time}`;
+        })
+        .catch(err => {
+            console.error("Connection error:", err);
+            document.getElementById("footerStatus").textContent = "Connection lost";
+        });
+}
+
+fetchESP32Data();
+setInterval(fetchESP32Data, 2000);
+</script>
+
+</body>
+</html>

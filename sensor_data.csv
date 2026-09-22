@@ -1,0 +1,11 @@
+Timestamp,Temperature_C,Humidity_pct,Soil_Moisture_pct,Light_Lux,Pump_Active,Grow_Light_Active,Exhaust_Fan_Active
+2026-09-22 10:12:39,ERR,ERR,ERR,ERR,False,False,False
+2026-09-22 10:12:41,ERR,ERR,ERR,ERR,False,False,False
+2026-09-22 10:12:44,ERR,ERR,ERR,ERR,False,False,False
+2026-09-22 10:21:00,ERR,ERR,ERR,ERR,False,False,False
+2026-09-22 10:21:02,ERR,ERR,ERR,ERR,False,False,False
+2026-09-22 10:21:04,ERR,ERR,ERR,ERR,False,False,False
+2026-09-22 10:21:06,ERR,ERR,ERR,ERR,False,False,False
+2026-09-22 10:21:08,ERR,ERR,ERR,ERR,False,False,False
+2026-09-22 10:21:10,ERR,ERR,ERR,ERR,False,False,False
+2026-09-22 10:21:12,ERR,ERR,ERR,ERR,False,False,False
